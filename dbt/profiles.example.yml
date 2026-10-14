@@ -1,0 +1,21 @@
+# Copy to ~/.dbt/profiles.yml. Fill the exports from the CDK stack outputs:
+#   export REDSHIFT_HOST=$(... WorkgroupEndpointAddress)
+#   export REDSHIFT_USER=admin                     # AdminUsername output
+#   export REDSHIFT_DBNAME=dev                      # DatabaseName output
+#   export REDSHIFT_SCHEMA=semantic_demo
+#   export REDSHIFT_PASSWORD=$(aws secretsmanager get-secret-value \
+#       --secret-id <AdminSecretName> --query SecretString --output text \
+#       | python3 -c 'import sys,json;print(json.load(sys.stdin)["password"])')
+semantic_demo:
+  target: dev
+  outputs:
+    dev:
+      type: redshift
+      host: "{{ env_var('REDSHIFT_HOST') }}"
+      user: "{{ env_var('REDSHIFT_USER') }}"
+      password: "{{ env_var('REDSHIFT_PASSWORD') }}"
+      port: 5439
+      dbname: "{{ env_var('REDSHIFT_DBNAME') }}"
+      schema: "{{ env_var('REDSHIFT_SCHEMA') }}"
+      threads: 4
+      sslmode: require

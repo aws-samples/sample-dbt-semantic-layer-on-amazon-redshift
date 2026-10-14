@@ -1,0 +1,46 @@
+semantic_models:
+  - name: orders
+    model: ref('fct_orders')
+    defaults:
+      agg_time_dimension: ordered_at
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+    dimensions:
+      - name: store
+        type: categorical
+      - name: ordered_at
+        type: time
+        type_params:
+          time_granularity: day
+    measures:
+      - name: order_total
+        description: Sum of order amounts.
+        agg: sum
+        expr: amount
+      - name: order_count
+        description: Number of orders.
+        agg: count
+        expr: order_id
+
+metrics:
+  - name: average_order_value
+    label: Average order value
+    description: Average revenue per order. Non-additive ratio.
+    type: ratio
+    type_params:
+      numerator: total_revenue
+      denominator: order_count
+  - name: total_revenue
+    label: Total revenue
+    description: Total order revenue.
+    type: simple
+    type_params:
+      measure: order_total
+  - name: order_count
+    label: Order count
+    description: Count of orders.
+    type: simple
+    type_params:
+      measure: order_count

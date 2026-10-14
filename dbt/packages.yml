@@ -1,0 +1,8 @@
+# dbt-core >= 1.9 is a pip pin, NOT a packages.yml entry. It is required because
+# models/marts/_models.yml registers the time spine with the 1.9 `time_spine:`
+# model key and `columns[].granularity`; older dbt rejects that YAML on parse.
+# Install it alongside the adapter:
+#   pip install "dbt-core>=1.9,<2.0" "dbt-metricflow[redshift]>=0.8"
+packages:
+  - package: dbt-labs/dbt_utils
+    version: [">=1.0.0", "<2.0.0"]

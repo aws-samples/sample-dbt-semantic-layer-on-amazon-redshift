@@ -1,0 +1,13 @@
+name: semantic_demo
+version: "1.0.0"
+config-version: 2
+
+profile: semantic_demo
+
+seed-paths: ["seeds"]
+model-paths: ["models"]
+
+models:
+  semantic_demo:
+    marts:
+      +materialized: table
