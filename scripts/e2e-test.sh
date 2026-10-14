@@ -109,7 +109,7 @@ if [[ ! -d .venv ]]; then
 fi
 # shellcheck source=/dev/null
 source .venv/bin/activate
-pip install "dbt-redshift>=1.9,<2.0" "dbt-metricflow>=0.8"
+pip install "dbt-redshift==1.9.5" "dbt-metricflow==0.11.0"
 
 dbt deps
 dbt seed
