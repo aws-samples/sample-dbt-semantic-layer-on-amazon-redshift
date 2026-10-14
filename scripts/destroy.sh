@@ -10,6 +10,9 @@ set -euo pipefail
 #
 # Usage:
 #   ./scripts/destroy.sh --yes      # or:  FORCE=1 ./scripts/destroy.sh
+#
+# Env knobs (all optional):
+#   VPC_ID + SUBNET_IDS  optionally target an existing VPC on teardown (pass together)
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STACK_NAME="SemanticDemoRedshift"
@@ -62,9 +65,21 @@ else
   echo "NOTE: infra/.venv not found; CDK deps may need installing (run deploy.sh first)." >&2
 fi
 
+# --- Optionally target a specific VPC/subnets (mirror deploy.sh) ----------
+# cdk destroy also synthesises the app, so forward the same optional context
+# keys deploy.sh accepts. Pass both together, or neither.
+CDK_ARGS=()
+if [[ -n "${VPC_ID:-}" && -n "${SUBNET_IDS:-}" ]]; then
+  CDK_ARGS+=(-c "vpc_id=${VPC_ID}" -c "subnet_ids=${SUBNET_IDS}")
+  echo "Targeting VPC ${VPC_ID} with subnets ${SUBNET_IDS}."
+elif [[ -n "${VPC_ID:-}" || -n "${SUBNET_IDS:-}" ]]; then
+  echo "ERROR: VPC_ID and SUBNET_IDS must be set together (or neither)." >&2
+  exit 1
+fi
+
 # --force only skips CDK's own interactive y/N prompt — our explicit gate above
 # is the real confirmation, so this does not bypass human intent.
-cdk destroy --force
+cdk destroy "${CDK_ARGS[@]+"${CDK_ARGS[@]}"}" --force
 
 rm -f "$REPO_ROOT/infra/cdk-outputs.json"
 echo "Teardown complete. Removed infra/cdk-outputs.json."
