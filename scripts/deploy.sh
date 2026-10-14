@@ -9,6 +9,7 @@ set -euo pipefail
 #   CDK_DEFAULT_ACCOUNT  AWS account id   (default: aws sts get-caller-identity)
 #   CDK_DEFAULT_REGION   AWS region       (default: AWS_REGION / aws configure / us-east-1)
 #   ALLOWED_CIDR         ingress CIDR     (default: <your public IP>/32)
+#   ALLOW_WIDE_CIDR      opt in to a /0 ingress CIDR (e.g. true); off by default
 #   VPC_ID + SUBNET_IDS  target an existing VPC (comma-separated subnets); pass together
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -59,6 +60,11 @@ pip install -r requirements.txt
 
 # --- Build the CDK context args (safe quoting via array) ------------------
 CDK_ARGS=(-c "allowed_cidr=${ALLOWED_CIDR}")
+# Opt in to an internet-wide ingress CIDR (e.g. 0.0.0.0/0). app.py rejects a /0
+# unless this is truthy. Leave unset to keep the guard active.
+if [[ -n "${ALLOW_WIDE_CIDR:-}" ]]; then
+  CDK_ARGS+=(-c "allow_wide_cidr=${ALLOW_WIDE_CIDR}")
+fi
 if [[ -n "${VPC_ID:-}" && -n "${SUBNET_IDS:-}" ]]; then
   CDK_ARGS+=(-c "vpc_id=${VPC_ID}" -c "subnet_ids=${SUBNET_IDS}")
   echo "Targeting VPC ${VPC_ID} with subnets ${SUBNET_IDS}."
