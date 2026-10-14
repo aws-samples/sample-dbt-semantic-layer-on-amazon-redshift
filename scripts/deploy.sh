@@ -10,6 +10,7 @@ set -euo pipefail
 #   CDK_DEFAULT_REGION   AWS region       (default: AWS_REGION / aws configure / us-east-1)
 #   ALLOWED_CIDR         ingress CIDR     (default: <your public IP>/32)
 #   ALLOW_WIDE_CIDR      opt in to a /0 ingress CIDR (e.g. true); off by default
+#   BUDGET_EMAIL         email for an optional 50 USD/month cost budget alert
 #   VPC_ID + SUBNET_IDS  target an existing VPC (comma-separated subnets); pass together
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -64,6 +65,11 @@ CDK_ARGS=(-c "allowed_cidr=${ALLOWED_CIDR}")
 # unless this is truthy. Leave unset to keep the guard active.
 if [[ -n "${ALLOW_WIDE_CIDR:-}" ]]; then
   CDK_ARGS+=(-c "allow_wide_cidr=${ALLOW_WIDE_CIDR}")
+fi
+# Optional monthly cost budget: when set, app.py creates a 50 USD/month budget
+# that emails this address at 80% of actual spend.
+if [[ -n "${BUDGET_EMAIL:-}" ]]; then
+  CDK_ARGS+=(-c "budget_email=${BUDGET_EMAIL}")
 fi
 if [[ -n "${VPC_ID:-}" && -n "${SUBNET_IDS:-}" ]]; then
   CDK_ARGS+=(-c "vpc_id=${VPC_ID}" -c "subnet_ids=${SUBNET_IDS}")

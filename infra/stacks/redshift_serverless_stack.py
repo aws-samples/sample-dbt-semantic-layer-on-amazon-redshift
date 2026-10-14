@@ -3,6 +3,7 @@ import json
 from aws_cdk import (
     CfnOutput,
     Stack,
+    aws_budgets as budgets,
     aws_ec2 as ec2,
     aws_redshiftserverless as redshiftserverless,
     aws_secretsmanager as secretsmanager,
@@ -35,6 +36,8 @@ class RedshiftServerlessStack(Stack):
         allowed_cidr,
         vpc_id=None,
         subnet_ids=None,
+        max_rpu=32,
+        budget_email=None,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -154,8 +157,46 @@ class RedshiftServerlessStack(Stack):
             subnet_ids=selected_subnet_ids,
             security_group_ids=[sg.security_group_id],
             base_capacity=8,  # smallest base RPU keeps the demo cheap
+            # Cap the max data-warehouse capacity (RPUs) so a runaway query
+            # cannot scale the workgroup without bound and inflate the bill.
+            max_capacity=max_rpu,
         )
         workgroup.add_dependency(namespace)
+
+        # --- Optional monthly cost budget --------------------------------
+        # Created only when a notification email is supplied via context
+        # (-c budget_email=you@example.com). No email is ever hardcoded, and
+        # when budget_email is absent no budget resource is synthesized.
+        if budget_email:
+            budgets.CfnBudget(
+                self,
+                "MonthlyCostBudget",
+                budget=budgets.CfnBudget.BudgetDataProperty(
+                    budget_name=f"{construct_id}-monthly-budget",
+                    budget_type="COST",
+                    time_unit="MONTHLY",
+                    budget_limit=budgets.CfnBudget.SpendProperty(
+                        amount=50,
+                        unit="USD",
+                    ),
+                ),
+                notifications_with_subscribers=[
+                    budgets.CfnBudget.NotificationWithSubscribersProperty(
+                        notification=budgets.CfnBudget.NotificationProperty(
+                            comparison_operator="GREATER_THAN",
+                            notification_type="ACTUAL",
+                            threshold=80,
+                            threshold_type="PERCENTAGE",
+                        ),
+                        subscribers=[
+                            budgets.CfnBudget.SubscriberProperty(
+                                address=budget_email,
+                                subscription_type="EMAIL",
+                            )
+                        ],
+                    )
+                ],
+            )
 
         # --- Outputs (each description names the matching dbt env var) ---
         CfnOutput(

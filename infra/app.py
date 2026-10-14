@@ -37,6 +37,19 @@ allowed_cidr = app.node.try_get_context("allowed_cidr") or "0.0.0.0/32"
 vpc_id = app.node.try_get_context("vpc_id")          # may be None
 subnet_ids = app.node.try_get_context("subnet_ids")  # may be None (CSV string)
 
+# Cost-guard context (optional):
+#   max_rpu       - cap on the workgroup max capacity in RPUs (default 32)
+#   budget_email  - when set, create a 50 USD/month budget alerting this address
+max_rpu_ctx = app.node.try_get_context("max_rpu")
+try:
+    max_rpu = int(max_rpu_ctx) if max_rpu_ctx is not None else 32
+except (TypeError, ValueError):
+    raise SystemExit(
+        f"max_rpu={max_rpu_ctx!r} is not a valid integer. Pass a whole number of "
+        "RPUs, for example -c max_rpu=32."
+    )
+budget_email = app.node.try_get_context("budget_email")  # may be None
+
 if allowed_cidr == "0.0.0.0/32":
     print(
         "WARNING: allowed_cidr not set; using unroutable sentinel 0.0.0.0/32. "
@@ -72,6 +85,8 @@ RedshiftServerlessStack(
     allowed_cidr=allowed_cidr,
     vpc_id=vpc_id,
     subnet_ids=subnet_ids,
+    max_rpu=max_rpu,
+    budget_email=budget_email,
 )
 
 app.synth()
