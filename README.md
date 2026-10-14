@@ -16,6 +16,41 @@ recomputes the ratio (`SUM(amount) / COUNT(orders)`) at whatever grain you ask
 for, returning the correct **`$280`** at week grain while still returning
 `$1,000` and `$100` at day grain. One definition, correct at every grain.
 
+## Quick start (scripts)
+
+The fastest path is the three convenience scripts in [`scripts/`](scripts/)
+(the detailed manual runbook below still works if you prefer to run each step
+yourself):
+
+```bash
+./scripts/deploy.sh        # provision the Redshift Serverless stack with CDK
+./scripts/e2e-test.sh      # build the dbt project and assert the metric values
+./scripts/destroy.sh --yes # tear everything down when you are finished
+```
+
+Or via `make`: `make deploy`, `make test`, `make destroy`.
+
+`e2e-test.sh` also accepts `--deploy` (deploy first) and `--destroy` (tear down
+at the end), so `./scripts/e2e-test.sh --deploy --destroy` runs the whole cycle.
+
+**Env-var knobs** (all optional — the scripts resolve sensible defaults):
+
+- `ALLOWED_CIDR` — ingress CIDR allowed on port `5439`. Defaults to your
+  detected public IP as a `/32`. Anything broader than `/32` prints a warning.
+- `CDK_DEFAULT_ACCOUNT` / `CDK_DEFAULT_REGION` — AWS account and region.
+  Auto-resolved from your AWS CLI (`sts get-caller-identity`, `configure get
+  region`, defaulting to `us-east-1`) when unset.
+- `VPC_ID` + `SUBNET_IDS` — target an existing VPC instead of the default one.
+  `SUBNET_IDS` is a comma-separated list of ≥ 3 subnets in distinct AZs. Pass
+  both together or neither.
+
+**Prerequisites:** configured AWS credentials plus the CDK and AWS CLIs — see
+[Prerequisites](#prerequisites) below.
+
+> **Cost note:** `deploy.sh` creates an Amazon Redshift Serverless workgroup,
+> which **incurs charges while it exists**. Run `./scripts/destroy.sh --yes`
+> as soon as you are done to stop the meter.
+
 ## Architecture
 
 - **`infra/`** — an AWS CDK v2 (Python) app that provisions an Amazon Redshift
