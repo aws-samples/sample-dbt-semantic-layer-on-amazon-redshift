@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# dbt
+target/
+logs/
+dbt_packages/
+.user.yml
+
+# CDK
+cdk.out/
+cdk.context.json
+cdk-outputs.json
+
+# macOS
+.DS_Store
