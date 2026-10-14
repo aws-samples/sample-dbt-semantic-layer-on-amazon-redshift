@@ -36,7 +36,14 @@ at the end), so `./scripts/e2e-test.sh --deploy --destroy` runs the whole cycle.
 **Env-var knobs** (all optional — the scripts resolve sensible defaults):
 
 - `ALLOWED_CIDR` — ingress CIDR allowed on port `5439`. Defaults to your
-  detected public IP as a `/32`. Anything broader than `/32` prints a warning.
+  detected public IP as a `/32`. Anything broader than `/32` prints a warning,
+  and a `/0` (e.g. `0.0.0.0/0`) is rejected unless `ALLOW_WIDE_CIDR` is set.
+- `ALLOW_WIDE_CIDR` — set to `true` to opt in to an internet-wide `/0`
+  `ALLOWED_CIDR`. Off by default so the endpoint is never accidentally opened
+  to the whole internet.
+- `BUDGET_EMAIL` — when set, creates an optional **50 USD/month** AWS cost
+  budget that emails this address at 80% of actual spend. No budget is created
+  when unset, and no email is ever hardcoded.
 - `CDK_DEFAULT_ACCOUNT` / `CDK_DEFAULT_REGION` — AWS account and region.
   Auto-resolved from your AWS CLI (`sts get-caller-identity`, `configure get
   region`, defaulting to `us-east-1`) when unset.
@@ -93,8 +100,20 @@ cdk deploy -c allowed_cidr=$(curl -s https://checkip.amazonaws.com)/32
 
 > **Security warning:** `allowed_cidr` controls who can reach the workgroup on
 > `5439`. Scope it to your own `/32`. A wide CIDR such as `0.0.0.0/0` exposes
-> the Redshift endpoint to the entire internet. If you omit `allowed_cidr`, the
-> app defaults to the unroutable sentinel `0.0.0.0/32` (and prints a warning).
+> the Redshift endpoint to the entire internet, so the app **rejects any `/0`
+> CIDR by default** and exits with guidance to scope to your `/32`. If you
+> genuinely need an internet-wide CIDR, opt in explicitly with
+> `-c allow_wide_cidr=true` (or `ALLOW_WIDE_CIDR=true` for `deploy.sh`). If you
+> omit `allowed_cidr`, the app defaults to the unroutable sentinel
+> `0.0.0.0/32` (and prints a warning).
+
+> **Cost guard:** the workgroup is capped at a modest **32 RPU** maximum
+> capacity (CloudFormation `MaxCapacity` on the workgroup) so a runaway query
+> cannot scale it without bound. Override with `-c max_rpu=<n>` (default `32`).
+> You can also create an optional monthly cost budget with
+> `-c budget_email=you@example.com` (or `BUDGET_EMAIL=...` for `deploy.sh`),
+> which raises a 50 USD/month budget alerting at 80% of actual spend; no budget
+> is created when the context key is absent.
 
 When the deploy finishes, note the stack outputs (`WorkgroupEndpointAddress`,
 `WorkgroupPort`, `DatabaseName`, `AdminUsername`, `AdminSecretName`,
@@ -109,13 +128,14 @@ Use a separate virtual environment for dbt:
 ```bash
 cd ../dbt
 python3 -m venv .venv && source .venv/bin/activate
-pip install "dbt-redshift>=1.9,<2.0" "dbt-metricflow>=0.8"
+pip install "dbt-redshift==1.9.5" "dbt-metricflow==0.11.0"
 ```
 
 > dbt-core **≥ 1.9 is required**: the time spine is registered with the 1.9
 > `time_spine:` YAML (and `columns[].granularity`), which older dbt-core
-> versions reject during `dbt parse`. `dbt-redshift>=1.9` pulls in a compatible
-> dbt-core; `dbt-metricflow` provides the `mf` CLI.
+> versions reject during `dbt parse`. The versions above are **pinned** for
+> reproducible builds: `dbt-redshift==1.9.5` pulls in a compatible dbt-core,
+> and `dbt-metricflow==0.11.0` provides the `mf` CLI.
 
 Copy the profile template and point it at your workgroup via environment
 variables filled from the CDK outputs + Secrets Manager:
@@ -204,13 +224,22 @@ following:
   `5439` limited to the CIDR you pass. Scope `allowed_cidr` to your own `/32`,
   or better, use private access (deploy to private subnets and reach the
   workgroup over a VPN/Direct Connect or a bastion) instead of public access.
+  A `/0` CIDR (e.g. `0.0.0.0/0`) is **rejected by default**; opt in explicitly
+  with `-c allow_wide_cidr=true` (or `ALLOW_WIDE_CIDR=true`) only if you really
+  intend to open the endpoint to the entire internet.
 - **Use a least-privilege database user.** The demo connects dbt as the admin
   user. Create a dedicated, least-privilege database user/role for dbt instead
   of using the admin credential.
 - **Enable logging and auditing.** Turn on Redshift audit/connection logging and
   monitor access to the workgroup.
-- **Pin dependencies.** Pin the Python, CDK, and dbt/adapter versions to known
-  good releases for reproducible, reviewable builds.
+- **Cap capacity and watch cost.** The workgroup `MaxCapacity` is capped at
+  `32` RPU by default (`-c max_rpu=<n>` to change). Supply
+  `-c budget_email=you@example.com` to add an optional 50 USD/month AWS budget
+  with an 80%-of-actual email alert.
+- **Pin dependencies.** The Python/CDK and dbt/adapter versions are pinned to
+  known-good releases for reproducible, reviewable builds:
+  `aws-cdk-lib==2.255.0`, `constructs==10.6.0`, `dbt-redshift==1.9.5`,
+  `dbt-metricflow==0.11.0`.
 
 ## Reference
 

@@ -33,9 +33,19 @@ cdk deploy -c allowed_cidr=$(curl -s https://checkip.amazonaws.com)/32
 
 > **Security warning:** `allowed_cidr` controls who can reach the workgroup on
 > `5439`. Passing a wide CIDR such as `0.0.0.0/0` exposes the Redshift
-> endpoint to the entire internet. Always scope it to your own `/32`. If you
-> omit `allowed_cidr`, the app defaults to the unroutable sentinel
-> `0.0.0.0/32` (and prints a warning) so nothing is accidentally left open.
+> endpoint to the entire internet, so the app **rejects any `/0` CIDR by
+> default** and exits with guidance to scope to your `/32`. If you genuinely
+> need an internet-wide CIDR, opt in explicitly with `-c allow_wide_cidr=true`
+> (or `ALLOW_WIDE_CIDR=true` for `deploy.sh`). Always prefer scoping to your
+> own `/32`. If you omit `allowed_cidr`, the app defaults to the unroutable
+> sentinel `0.0.0.0/32` (and prints a warning) so nothing is accidentally
+> left open.
+
+> **Cost guard:** the workgroup is capped at a modest `32` RPU maximum capacity
+> (`MaxCapacity`); override with `-c max_rpu=<n>`. Add an optional 50 USD/month
+> cost budget with `-c budget_email=you@example.com` (or `BUDGET_EMAIL=...`),
+> which alerts at 80% of actual spend. No budget resource is created when the
+> context key is absent, and no email is ever hardcoded.
 
 The default-deploy path looks up the default VPC and picks one public subnet in
 each of three AZs. To target a specific VPC/subnets, pass both context keys
