@@ -183,5 +183,5 @@ following:
 
 ## License
 
-This sample is licensed under the MIT-0 License. See the [LICENSE](LICENSE)
-file.
+This sample is licensed under the Apache License 2.0. See the [LICENSE](LICENSE)
+and [NOTICE](NOTICE) files.
