@@ -98,11 +98,21 @@ class RedshiftServerlessStack(Stack):
             # Real-deploy path: needs account/region + live creds.
             vpc = ec2.Vpc.from_lookup(self, "DefaultVpc", is_default=True)
             public = vpc.select_subnets(subnet_type=ec2.SubnetType.PUBLIC)
+            # On a fresh checkout with no cached cdk.context.json, CDK runs an
+            # initial synth pass with a DUMMY lookup result (availability zones
+            # 'dummy1a'/'dummy1b' and placeholder subnet ids) BEFORE it performs
+            # the real environment lookup. The AZ-count check must not fire on
+            # that dummy pass, or synth crashes before the real lookup can run.
+            # Detect the dummy pass and skip validation; CDK re-synthesises with
+            # real data afterwards.
+            is_dummy_lookup = any(
+                "dummy" in az for az in vpc.availability_zones
+            )
             # Redshift Serverless requires subnets in >= 3 AZs.
             by_az = {}
             for sn in public.subnets:
                 by_az.setdefault(sn.availability_zone, sn)
-            if len(by_az) < 3:
+            if not is_dummy_lookup and len(by_az) < 3:
                 raise ValueError(
                     "Default VPC exposes subnets in fewer than 3 AZs in this region. "
                     "Re-run with -c vpc_id=<id> -c subnet_ids=<id1,id2,id3> pointing at "
